@@ -1,0 +1,50 @@
+const sqlite3 = require('sqlite3').verbose();
+
+const db = new sqlite3.Database('./database.db', (err) => {
+    if (err) {
+        console.error('Erro ao abrir banco', err.message);
+    } else {
+        console.log('SQLite conectado');
+    }
+});
+
+module.exports = db;
+db.run('DROP TABLE IF EXISTS locais_features');
+db.run(`
+  CREATE TABLE IF NOT EXISTS usuarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    email TEXT NOT NULL
+  )
+`);
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS locais (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tipo TEXT NOT NULL,
+  nome TEXT NOT NULL,
+  localizacao TEXT NOT NULL,
+  descricao TEXT NOT NULL,
+  imagem_url TEXT NOT NULL,
+  visitas INTEGER NOT NULL
+)
+`);
+
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS features (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tipo TEXT NOT NULL,
+  valor TEXT NOT NULL
+)
+`);
+
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS locais_features (
+  locais_id INTEGER NOT NULL,
+  feature_id INTEGER NOT NULL,
+  FOREIGN KEY (locais_id) REFERENCES locais(id),
+  FOREIGN KEY (feature_id) REFERENCES features(id)
+)
+`);
