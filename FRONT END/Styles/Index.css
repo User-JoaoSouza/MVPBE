@@ -281,17 +281,27 @@ body {
 }
 
 .trilhas_container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    display: flex;
     gap: 2rem;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    padding: 1rem;
+
+    scroll-snap-type: x mandatory;
 }
+
 /* marca D'agua Fnsso F4 */
-.trilhas_card{
+.trilhas_card {
     background: white;
     border-radius: 15px;
     overflow: hidden;
     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+    flex: 0 0 auto;
+    width: 350px;
 }
 
 .trilhas_card:hover {

@@ -198,9 +198,9 @@ app.get('/locais/cachoeiras', (req, res) => {
             return res.status(500).json(err);
         }
 
-        // se não encontrou o local
+        // se não tiver nada no banco
         if (rows.length === 0) {
-            return res.status(404).json({ erro: 'Local nao encontrada' });
+            return res.json([]);
         }
 
         const locaisMap = {};
@@ -259,9 +259,9 @@ app.get('/locais/trilhas', (req, res) => {
             return res.status(500).json(err);
         }
 
-        // se não encontrou o local
+        // se não tiver nada no banco
         if (rows.length === 0) {
-            return res.status(404).json({ erro: 'Local nao encontrada' });
+            return res.json([]);
         }
 
         const locaisMap = {};
@@ -320,9 +320,9 @@ app.get('/locais/:id', (req, res) => {
             return res.status(500).json(err);
         }
 
-        // se não encontrou o local
+        // se não tiver nada no banco
         if (rows.length === 0) {
-            return res.status(404).json({ erro: 'Local nao encontrada' });
+            return res.json([]);
         }
 
         // monta o objeto final
