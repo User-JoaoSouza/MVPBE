@@ -9,14 +9,6 @@ const db = new sqlite3.Database('./database.db', (err) => {
 });
 
 module.exports = db;
-db.run('DROP TABLE IF EXISTS locais_features');
-db.run(`
-  CREATE TABLE IF NOT EXISTS usuarios (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT NOT NULL,
-    email TEXT NOT NULL
-  )
-`);
 
 db.run(`
   CREATE TABLE IF NOT EXISTS locais (
@@ -48,3 +40,18 @@ db.run(`
   FOREIGN KEY (feature_id) REFERENCES features(id)
 )
 `);
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS usuarios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  email_hash TEXT NOT NULL UNIQUE,
+  email_encrypted TEXT NOT NULL,
+  login TEXT NOT NULL UNIQUE,
+  telefone_encrypted TEXT,
+  password_hash TEXT NOT NULL,
+  role TEXT CHECK(role IN ('admin','user')) DEFAULT 'user',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+`);
+

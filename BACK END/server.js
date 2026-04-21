@@ -1,6 +1,9 @@
-const express = require('express');
+Ôªøconst express = require('express');
 const cors = require('cors');
+const crypto = require('crypto');
 const db = require('./db');
+const { encrypt, decrypt } = require('./Crypt');
+const { hashPassword, comparePassword } = require('./Auth_Backend');
 
 const app = express();
 app.use(cors());
@@ -14,31 +17,6 @@ app.listen(3000, () => {
     console.log('Servidor rodando em http://localhost:3000');
 });
 
-//Cadastrar usu·rios
-app.post('/usuarios', (req, res) => {
-    const { nome, email } = req.body;
-
-    const sql = 'INSERT INTO usuarios (nome, email) VALUES (?, ?)';
-
-    db.run(sql, [nome, email], function (err) {
-        if (err) {
-            return res.status(500).json(err);
-        }
-
-        res.json({ id: this.lastID });
-    });
-});
-
-//Ler usu·rios
-app.get('/usuarios', (req, res) => {
-    db.all('SELECT * FROM usuarios', [], (err, rows) => {
-        if (err) {
-            return res.status(500).json(err);
-        }
-
-        res.json(rows);
-    });
-});
 
 //Cria locais
 
@@ -73,7 +51,7 @@ app.post('/features', (req, res) => {
 
     if (!tipo || !valor) {
         return res.status(400).json({
-            erro: 'tipo e valor sao obrigatÛrios'
+            erro: 'tipo e valor sao obrigat√≥rios'
         });
     }
 
@@ -99,7 +77,7 @@ app.post('/locais_features', (req, res) => {
 
     if (!locais_id || !feature_id) {
         return res.status(400).json({
-            erro: 'locais_id e feature_id s„o obrigatÛrios'
+            erro: 'locais_id e feature_id s√£o obrigat√≥rios'
         });
     }
 
@@ -120,7 +98,7 @@ app.post('/locais_features', (req, res) => {
     });
 });
 
-//Traz as informaÁıes de todas os locais
+//Traz as informa√ß√µes de todas os locais
 app.get('/locais', (req, res) => {
     const sql = `
     SELECT
@@ -172,7 +150,7 @@ app.get('/locais', (req, res) => {
     });
 });
 
-//Traz informaÁıes das cachoeiras
+//Traz informa√ß√µes das cachoeiras
 app.get('/locais/cachoeiras', (req, res) => {
     const { id } = req.params;
 
@@ -198,7 +176,7 @@ app.get('/locais/cachoeiras', (req, res) => {
             return res.status(500).json(err);
         }
 
-        // se n„o tiver nada no banco
+        // se n√£o tiver nada no banco
         if (rows.length === 0) {
             return res.json([]);
         }
@@ -233,7 +211,7 @@ app.get('/locais/cachoeiras', (req, res) => {
 });
 
 
-//Traz informaÁıes da trilhas
+//Traz informa√ß√µes da trilhas
 app.get('/locais/trilhas', (req, res) => {
     const { id } = req.params;
 
@@ -259,7 +237,7 @@ app.get('/locais/trilhas', (req, res) => {
             return res.status(500).json(err);
         }
 
-        // se n„o tiver nada no banco
+        // se n√£o tiver nada no banco
         if (rows.length === 0) {
             return res.json([]);
         }
@@ -294,7 +272,7 @@ app.get('/locais/trilhas', (req, res) => {
 });
 
 
-//Traz informaÁıes dos locais por ID
+//Traz informa√ß√µes dos locais por ID
 app.get('/locais/:id', (req, res) => {
     const { id } = req.params;
 
@@ -320,7 +298,7 @@ app.get('/locais/:id', (req, res) => {
             return res.status(500).json(err);
         }
 
-        // se n„o tiver nada no banco
+        // se n√£o tiver nada no banco
         if (rows.length === 0) {
             return res.json([]);
         }
@@ -367,7 +345,7 @@ app.get('/features', (req, res) => {
     });
 });
 
-//deleta informaÁ„o das 3 tabelas, util para testes
+//deleta informa√ß√£o das 3 tabelas, util para testes
 app.delete('/resetcompleto', (req, res) => {
 
     db.serialize(() => {
@@ -375,12 +353,94 @@ app.delete('/resetcompleto', (req, res) => {
         db.run('DELETE FROM locais_features');
         db.run('DELETE FROM locais');
         db.run('DELETE FROM features');
+        db.run('DELETE FROM usuarios');
 
         db.run('DELETE FROM sqlite_sequence WHERE name="locais"');
+        db.run('DELETE FROM sqlite_sequence WHERE name="locais_features"');
         db.run('DELETE FROM sqlite_sequence WHERE name="features"');
+        db.run('DELETE FROM sqlite_sequence WHERE name="usuarios"');
     });
 
     res.json({
         mensagem: 'Banco resetado completamente'
+    });
+});
+
+// Rota de Registro (Cadastro)
+app.post('/auth/register', async (req, res) => {
+    // 1. Pegamos a role do body. Se n√£o vier nada, definimos como 'user'
+    const { nome, email, login, senha, telefone, role } = req.body;
+    const userRole = role || 'user';
+
+    try {
+        const emailEncrypted = encrypt(email);
+        const emailHash = crypto.createHash('sha256').update(email).digest('hex');
+        const telEncrypted = telefone ? encrypt(telefone) : null;
+        const passwordHash = await hashPassword(senha);
+
+        const sql = `INSERT INTO usuarios (nome, email_hash, email_encrypted, login, telefone_encrypted, password_hash, role) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`;
+
+        // 2. Substitu√≠mos o 'user' fixo pela vari√°vel userRole
+        db.run(sql, [nome, emailHash, emailEncrypted, login, telEncrypted, passwordHash, userRole], function (err) {
+            if (err) {
+                if (err.message.includes('UNIQUE')) {
+                    return res.status(400).json({ error: "Login ou Email j√° cadastrado!" });
+                }
+                return res.status(500).json({ error: err.message });
+            }
+            res.json({ success: true, id: this.lastID, role: userRole });
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Erro ao processar cadastro" });
+    }
+});
+
+//Faz login
+// Rota de Login Corrigida
+app.post('/auth/login', async (req, res) => {
+    const { loginOrEmail, senha } = req.body;
+
+    // Gerar o hash do email para busca (se voc√™ salvou assim no db.js)
+    const emailHash = crypto.createHash('sha256').update(loginOrEmail).digest('hex');
+
+    const sql = `SELECT * FROM usuarios WHERE login = ? OR email_hash = ?`;
+
+    db.get(sql, [loginOrEmail, emailHash], async (err, user) => {
+        if (err) {
+            console.error("ERRO DETALHADO DO SQLITE:", err.message); // Isso vai aparecer no seu terminal
+            return res.status(500).json({ error: err.message });     // Isso vai aparecer no Postman
+        }
+        if (!user) return res.status(401).json({ success: false, message: "Usu√°rio n√£o encontrado" });
+
+        // Compara a senha digitada com o hash salvo no banco
+        console.log(" Usu√°rio encontrado:", user.login);
+        console.log(" Senha digitada (texto puro):", senha);
+        console.log(" Hash salvo no banco:", user.password_hash);
+
+        const valid = await comparePassword(senha, user.password_hash);
+        console.log(" Resultado da compara√ß√£o:", valid);
+
+        if (valid) {
+            res.json({ success: true, user: { nome: user.nome, role: user.role } });
+        } else {
+            res.status(401).json({ success: false, message: "Senha incorreta" });
+        }
+    });
+});
+
+
+app.get('/debug/users', (req, res) => {
+    // O '*' seleciona todas as colunas definidas no seu CREATE TABLE
+    const sql = `SELECT * FROM usuarios`;
+
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error("Erro ao buscar usu√°rios:", err.message);
+            return res.status(500).json({ error: err.message });
+        }
+
+        // Retorna a lista completa para o Postman
+        res.json(rows);
     });
 });
