@@ -16,13 +16,10 @@ async function login(username, password) {
         });
 
         const result = await response.json();
-
-        // --- O SEGREDO ESTÁ AQUI ---
         if (result.success && result.user) {
-            localStorage.setItem('userLoggedIn', 'true');
-            localStorage.setItem('currentUser', JSON.stringify(result.user));
+            sessionStorage.setItem('userLoggedIn', 'true');
+            sessionStorage.setItem('currentUser', JSON.stringify(result.user));
         }
-        // ---------------------------
 
         return result;
     } catch (error) {
@@ -53,18 +50,18 @@ async function createUser(nome, email, login, telefone, senha) {
 // --- UTILITÁRIOS DE SESSÃO ---
 
 function isUserLoggedIn() {
-    return localStorage.getItem('userLoggedIn') === 'true';
+    return sessionStorage.getItem('userLoggedIn') === 'true';
 }
 
 function isAdminLoggedIn() {
-    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    return isUserLoggedIn() && (user.role === 'admin' || localStorage.getItem('adminLoggedIn') === 'true');
+    const user = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+    return isUserLoggedIn() && (user.role === 'admin' || sessionStorage.getItem('adminLoggedIn') === 'true');
 }
 
 function logoutUser() {
-    localStorage.removeItem('userLoggedIn');
-    localStorage.removeItem('adminLoggedIn');
-    localStorage.removeItem('currentUser');
+    sessionStorage.removeItem('userLoggedIn');
+    sessionStorage.removeItem('adminLoggedIn');
+    sessionStorage.removeItem('currentUser');
     window.location.reload(); // Recarrega para limpar a interface
 }
 
@@ -86,7 +83,7 @@ function updateLoginInterface() {
     if (!navLogin) return;
 
     if (isUserLoggedIn()) {
-        const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const user = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
         const isAdmin = isAdminLoggedIn();
 
         // Estilização dinâmica baseada no Role

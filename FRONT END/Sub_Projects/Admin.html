@@ -69,15 +69,37 @@
     <script>
     // Executa imediatamente para evitar que a página apareça para quem não deve
 
-        (() => {
-            const userLoggedado = localStorage.getItem('userLoggedIn') === 'true';
-            const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+        async function verificarAdmin() {
+            const user = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
 
-            if (!userLoggedado || !user || user.role !== 'admin') {
-                alert('Acesso restrito! Por favor, faça login como administrador.');
+            if (!user || !user.login) {
+                alert('Acesso restrito! Por favor, faça login.');
                 window.location.replace('../Index.html');
+                return;
             }
-        })();
+
+            try {
+                const response = await fetch('http://localhost:3000/auth/me', {
+                    headers: { 'x-user-login': user.login }
+                });
+
+                const data = await response.json();
+
+                if (!data.success || data.user.role !== 'admin') {
+                    alert('Acesso restrito! Você não tem permissão de administrador.');
+                    window.location.replace('../Index.html');
+                } else {
+                    // ✅ É admin confirmado pelo banco, mostra o nome
+                    document.getElementById('welcome-admin').textContent = `Olá, ${data.user.login}`;
+                }
+
+            } catch (err) {
+                alert('Erro ao verificar permissões. Tente novamente.');
+                window.location.replace('../Index.html'); user.name
+            }
+        }
+
+        verificarAdmin();
 
         // --- Mantenha suas outras funções (showAgendamentos, etc) abaixo ---
         function showAgendamentos() {

@@ -17,6 +17,21 @@ app.listen(3000, () => {
     console.log('Servidor rodando em http://localhost:3000');
 });
 
+// Middleware rápido para verificar se é admin via header x-user-login
+function checkAdmin(req, res, next) {
+    const login = req.headers['x-user-login'];
+    if (!login) {
+        return res.status(401).json({ error: 'Cabeçalho x-user-login ausente' });
+    }
+
+    db.get('SELECT role FROM usuarios WHERE login = ?', [login], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+        if (user.role !== 'admin') return res.status(403).json({ error: 'Acesso restrito a administradores' });
+        next(); // segue para a rota
+    });
+}
+
 
 //Cria locais
 
@@ -345,7 +360,7 @@ app.get('/features', (req, res) => {
     });
 });
 
-//deleta informação das 3 tabelas, util para testes
+//deleta informação das tabelas, util para testes
 app.delete('/resetcompleto', (req, res) => {
 
     db.serialize(() => {
@@ -363,6 +378,23 @@ app.delete('/resetcompleto', (req, res) => {
 
     res.json({
         mensagem: 'Banco resetado completamente'
+    });
+});
+
+
+//dropa  as tabelas, util para testes
+app.delete('/dropTabelas', (req, res) => {
+
+    db.serialize(() => {
+
+        db.run('DROP TABLE locais_features');
+        db.run('DROP TABLE locais');
+        db.run('DROP TABLE features');
+        db.run('DROP TABLE usuarios');
+    });
+
+    res.json({
+        mensagem: 'Banco dropado completamente'
     });
 });
 
@@ -396,8 +428,7 @@ app.post('/auth/register', async (req, res) => {
     }
 });
 
-//Faz login
-// Rota de Login Corrigida
+// Rota de Login 
 app.post('/auth/login', async (req, res) => {
     const { loginOrEmail, senha } = req.body;
 
@@ -413,34 +444,151 @@ app.post('/auth/login', async (req, res) => {
         }
         if (!user) return res.status(401).json({ success: false, message: "Usuário não encontrado" });
 
-        // Compara a senha digitada com o hash salvo no banco
-        console.log(" Usuário encontrado:", user.login);
-        console.log(" Senha digitada (texto puro):", senha);
-        console.log(" Hash salvo no banco:", user.password_hash);
-
         const valid = await comparePassword(senha, user.password_hash);
-        console.log(" Resultado da comparação:", valid);
 
         if (valid) {
-            res.json({ success: true, user: { nome: user.nome, role: user.role } });
+            res.json({ success: true, user: { nome: user.nome, role: user.role, login: user.login } });
         } else {
             res.status(401).json({ success: false, message: "Senha incorreta" });
         }
     });
 });
 
+//Validar admin
+app.get('/auth/me', (req, res) => {
+    const login = req.headers['x-user-login'];
+    if (!login) return res.status(401).json({ success: false, error: 'Não autorizado' });
 
-app.get('/debug/users', (req, res) => {
-    // O '*' seleciona todas as colunas definidas no seu CREATE TABLE
-    const sql = `SELECT * FROM usuarios`;
+    db.get('SELECT nome, role FROM usuarios WHERE login = ?', [login], (err, user) => {
+        if (err || !user) return res.status(401).json({ success: false, error: 'Usuário não encontrado' });
+        res.json({ success: true, user: { nome: user.nome, login: user.login, role: user.role } });
+    });
+});
 
+//Promover a Admin
+app.patch('/auth/promover', checkAdmin, (req, res) => {
+    const { login } = req.body;
+
+    if (!login) return res.status(400).json({ error: 'Login é obrigatório' });
+
+    db.get('SELECT * FROM usuarios WHERE login = ?', [login], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+        if (user.role === 'admin') return res.status(400).json({ error: 'Usuário já é administrador' });
+
+        db.run('UPDATE usuarios SET role = ? WHERE login = ?', ['admin', login], function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, message: `${login} agora é administrador!` });
+        });
+    });
+});
+
+app.patch('/auth/demote', checkAdmin, (req, res) => {
+    const { login } = req.body;          // login do usuário a ser rebaixado
+    const adminLogin = req.user.login;    // login do admin que está fazendo a requisição
+
+    if (!login) return res.status(400).json({ error: 'Login é obrigatório' });
+
+    if (login === adminLogin) {
+        return res.status(400).json({ error: 'Você não pode remover seu próprio acesso de administrador.' });
+    }
+
+    db.get('SELECT * FROM usuarios WHERE login = ?', [login], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+        if (user.role !== 'admin') return res.status(400).json({ error: 'O usuário já é comum' });
+
+        db.run('UPDATE usuarios SET role = ? WHERE login = ?', ['user', login], function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, message: `✅ ${login} agora é um usuário comum.` });
+        });
+    });
+});
+
+
+app.get('/debug/users', checkAdmin, (req, res) => {
+    const sql = `SELECT id, nome, login, role, created_at FROM usuarios`;
     db.all(sql, [], (err, rows) => {
         if (err) {
             console.error("Erro ao buscar usuários:", err.message);
             return res.status(500).json({ error: err.message });
         }
-
-        // Retorna a lista completa para o Postman
         res.json(rows);
+    });
+});
+
+app.get('/debug/users/:login', checkAdmin, (req, res) => {
+    const { login } = req.params;
+    const sql = `SELECT id, nome, login, role, created_at FROM usuarios WHERE login = ?`;
+    db.get(sql, [login], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+        res.json(user);
+    });
+});
+
+// Cria local completo com features vinculadas (transação serializada)
+app.post('/locais/completo', checkAdmin, (req, res) => {
+    const {
+        nome, tipo, localizacao, descricao,
+        imagem_url, visitas, dificuldade, duracao, preco,
+        features // array de { tipo, valor }
+    } = req.body;
+
+    if (!nome || !tipo || !localizacao || !descricao || !dificuldade || !duracao || preco === undefined) {
+        return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
+    }
+
+    const sqlLocal = `
+        INSERT INTO locais (tipo, nome, localizacao, descricao, imagem_url, visitas, dificuldade, duracao, preco)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    db.serialize(() => {
+        db.run(sqlLocal,
+            [tipo, nome, localizacao, descricao, imagem_url || '', visitas || 0, dificuldade, duracao, preco],
+            function (err) {
+                if (err) return res.status(500).json({ error: err.message });
+
+                const localId = this.lastID;
+
+                // Se não veio nenhuma feature, já retorna
+                if (!features || features.length === 0) {
+                    return res.status(201).json({ id: localId, nome, features: [] });
+                }
+
+                const sqlFeature = 'INSERT INTO features (tipo, valor) VALUES (?, ?)';
+                const sqlVinculo = 'INSERT INTO locais_features (locais_id, feature_id) VALUES (?, ?)';
+                const featuresCriadas = [];
+                let processadas = 0;
+
+                features.forEach(({ tipo: fTipo, valor: fValor }) => {
+                    if (!fTipo || !fValor) {
+                        processadas++;
+                        if (processadas === features.length) {
+                            res.status(201).json({ id: localId, nome, features: featuresCriadas });
+                        }
+                        return;
+                    }
+
+                    db.run(sqlFeature, [fTipo, fValor], function (err) {
+                        if (err) return res.status(500).json({ error: 'Erro ao criar feature: ' + err.message });
+
+                        const featureId = this.lastID;
+
+                        db.run(sqlVinculo, [localId, featureId], function (err) {
+                            if (err) return res.status(500).json({ error: 'Erro ao vincular feature: ' + err.message });
+
+                            featuresCriadas.push({ id: featureId, tipo: fTipo, valor: fValor });
+                            processadas++;
+
+                            if (processadas === features.length) {
+                                res.status(201).json({ id: localId, nome, features: featuresCriadas });
+                            }
+                        });
+                    });
+                });
+            }
+        );
     });
 });

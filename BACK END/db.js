@@ -18,7 +18,10 @@ db.run(`
   localizacao TEXT NOT NULL,
   descricao TEXT NOT NULL,
   imagem_url TEXT NOT NULL,
-  visitas INTEGER NOT NULL
+  visitas INTEGER NOT NULL,
+  dificuldade TEXT NOT NULL,
+  duracao TEXT NOT NULL,
+  preco TEXT NOT NULL
 )
 `);
 

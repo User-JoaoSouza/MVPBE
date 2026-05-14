@@ -123,12 +123,13 @@ async function handleLogin(e) {
         const result = await response.json();
 
         if (result.success) {
+            localStorage.setItem('userLoggedIn', 'true');
+            localStorage.setItem('currentUser', JSON.stringify(result.user));
+
             if (result.user.role === 'admin') {
                 localStorage.setItem('adminLoggedIn', 'true');
-                alert('Login de administrador realizado com sucesso!');
+                alert(`Bem-vindo, Administrador ${result.user.nome}!`);
             } else {
-                localStorage.setItem('userLoggedIn', 'true');
-                localStorage.setItem('currentUser', JSON.stringify(result.user));
                 alert(`Bem-vindo, ${result.user.nome}!`);
             }
 

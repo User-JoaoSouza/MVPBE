@@ -88,38 +88,40 @@
     <script src="../js/Auth.js"></script>
     <script src="../js/Index.JS"></script>
     <script>
-        document.getElementById('create-account-form').addEventListener('submit', function(e) {
+        document.getElementById('create-account-form').addEventListener('submit', async function (e) {
             e.preventDefault();
-            
-            const nome = document.getElementById('nome').value;
-            const email = document.getElementById('email').value;
-            const login = document.getElementById('login').value;
-            const telefone = document.getElementById('telefone').value;
+
+            const nome = document.getElementById('nome').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const login = document.getElementById('login').value.trim();
+            const telefone = document.getElementById('telefone').value.trim();
             const senha = document.getElementById('senha').value;
             const confirmarSenha = document.getElementById('confirmar-senha').value;
-            
+
             if (senha !== confirmarSenha) {
                 alert('As senhas não coincidem!');
                 return;
             }
-            
-            if (createUser(nome, email, login, telefone, senha)) {
-                alert('Conta criada com sucesso! Você pode fazer login agora.');
-                window.location.href = '../Index.html';
-            } else {
-                alert('Este email ou login já está cadastrado!');
+
+            try {
+                const response = await fetch('http://localhost:3000/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome, email, login, telefone, senha })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Conta criada com sucesso! Você pode fazer login agora.');
+                    window.location.href = '../Index.html';
+                } else {
+                    alert(result.error || 'Erro ao criar conta.');
+                }
+            } catch (err) {
+                console.error('Erro:', err);
+                alert('Erro ao conectar com o servidor.');
             }
-        });
-        
-        toggleAdminLink();
-        
-        // Menu hambúrguer
-        const navToggle = document.getElementById('nav_toggle');
-        const navContent = document.getElementById('nav_content');
-        
-        navToggle.addEventListener('click', function() {
-            navContent.classList.toggle('active');
-            navToggle.classList.toggle('active');
         });
     </script>
 </body>

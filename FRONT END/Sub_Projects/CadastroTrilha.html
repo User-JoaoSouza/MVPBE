@@ -33,15 +33,50 @@
         <div class="container">
             <div class="trilha-header">
                 <button onclick="window.location.href='Admin.html'" class="back-btn">← Voltar</button>
-                <h1>Cadastrar Nova Trilha</h1>
+                <h1>Cadastrar Novo Local</h1>
             </div>
 
-            <form class="trilha-form" onsubmit="cadastrarTrilha(event)">
+            <form class="trilha-form" id="form-cadastro" onsubmit="cadastrarLocal(event)">
+
+                <!-- BLOCO 1: INFORMAÇÕES BÁSICAS -->
+                <h2 class="form-section-title">📋 Informações Básicas</h2>
                 <div class="form-grid">
+
                     <div class="form-group">
-                        <label for="nome">Nome da Trilha *</label>
-                        <input type="text" id="nome" required>
+                        <label for="tipo">Tipo de Local *</label>
+                        <select id="tipo" required>
+                            <option value="">Selecione</option>
+                            <option value="trilha">🥾 Trilha</option>
+                            <option value="cachoeira">💦 Cachoeira</option>
+                        </select>
                     </div>
+
+                    <div class="form-group">
+                        <label for="nome">Nome *</label>
+                        <input type="text" id="nome" placeholder="Ex: Pedra do Sino" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="localizacao">Localização *</label>
+                        <input type="text" id="localizacao" placeholder="Ex: Parque Nacional Serra dos Órgãos - Teresópolis/RJ" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="imagem">URL da Imagem Principal</label>
+                        <input type="url" id="imagem" placeholder="https://exemplo.com/imagem.jpg">
+                    </div>
+
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label for="descricao">Descrição *</label>
+                    <textarea id="descricao" rows="4" required
+                              placeholder="Descreva o local, pontos de interesse, o que esperar..."></textarea>
+                </div>
+
+                <!-- BLOCO 2: DETALHES TÉCNICOS -->
+                <h2 class="form-section-title">⚙️ Detalhes Técnicos</h2>
+                <div class="form-grid">
 
                     <div class="form-group">
                         <label for="dificuldade">Dificuldade *</label>
@@ -50,73 +85,204 @@
                             <option value="Fácil">Fácil</option>
                             <option value="Moderada">Moderada</option>
                             <option value="Difícil">Difícil</option>
+                            <option value="Pesada">Pesada</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label for="duracao">Duração (horas) *</label>
-                        <input type="number" id="duracao" min="1" max="12" required>
+                        <label for="duracao">Duração *</label>
+                        <input type="text" id="duracao" placeholder="Ex: 6h, 10 a 14 horas" required>
                     </div>
 
                     <div class="form-group">
                         <label for="preco">Preço (R$) *</label>
-                        <input type="number" id="preco" min="0" step="0.01" required>
+                        <input type="number" id="preco" min="0" step="0.01" placeholder="0.00" required>
                     </div>
+
+                    <div class="form-group">
+                        <label for="visitas">Visitas Iniciais</label>
+                        <input type="number" id="visitas" min="0" value="0">
+                    </div>
+
                 </div>
 
-                <div class="form-group">
-                    <label for="descricao">Descrição *</label>
-                    <textarea id="descricao" rows="4" required placeholder="Descreva a trilha, pontos de interesse, o que esperar..."></textarea>
+                <!-- BLOCO 3: FEATURES -->
+                <h2 class="form-section-title">🏷️ Features / Características</h2>
+                <p class="form-section-desc">
+                    Adicione características específicas do local. Exemplos de tipos:
+                    <em>Altitude máxima</em>, <em>Melhor época</em>, <em>Distância</em>, <em>Vista panorâmica</em>...
+                </p>
+
+                <div id="features-container">
+                    <!-- linhas inseridas dinamicamente -->
                 </div>
 
-                <div class="form-group">
-                    <label for="imagem">URL da Imagem Principal</label>
-                    <input type="url" id="imagem" placeholder="https://exemplo.com/imagem.jpg">
-                </div>
+                <button type="button" class="btn-add-feature" onclick="adicionarFeature()">
+                    + Adicionar Característica
+                </button>
 
+                <!-- AÇÕES -->
                 <div class="form-actions">
                     <button type="button" onclick="window.location.href='Admin.html'" class="btn-cancel">Cancelar</button>
-                    <button type="submit" class="btn-save">Cadastrar Trilha</button>
+                    <button type="submit" class="btn-save" id="btn-submit">
+                        <span id="btn-submit-text">Cadastrar Local</span>
+                        <span id="btn-submit-loading" style="display:none;">Salvando...</span>
+                    </button>
                 </div>
+
             </form>
         </div>
     </main>
 
     <script src="../js/Auth.js"></script>
     <script>
-        // Aguardar carregamento do Auth.js
-        document.addEventListener('DOMContentLoaded', function() {
-            if (typeof isAdminLoggedIn === 'function' && !isAdminLoggedIn()) {
-                window.location.href = '../Index.html';
+        // Verificação de acesso admin
+        async function verificarAdmin() {
+            const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+            if (!user || !user.login) {
+                alert('Acesso restrito! Por favor, faça login.');
+                window.location.replace('../Index.html');
+                return;
             }
-        });
+            try {
+                const response = await fetch('http://localhost:3000/auth/me', {
+                    headers: { 'x-user-login': user.login }
+                });
+                const data = await response.json();
+                if (!data.success || data.user.role !== 'admin') {
+                    alert('Acesso restrito!');
+                    window.location.replace('../Index.html');
+                }
+            } catch {
+                alert('Erro ao verificar permissões.');
+                window.location.replace('../Index.html');
+            }
+        }
+        verificarAdmin();
 
-        function logout() {
-            localStorage.removeItem('adminLoggedIn');
-            window.location.href = '../Index.html';
+        // Gerenciamento de features
+        let featureCount = 0;
+
+        function adicionarFeature() {
+            featureCount++;
+            const id = featureCount;
+            const container = document.getElementById('features-container');
+
+            const linha = document.createElement('div');
+            linha.className = 'feature-row';
+            linha.id = `feature-${id}`;
+            linha.innerHTML = `
+                <div class="feature-fields">
+                    <div class="form-group feature-tipo">
+                        <label>Tipo</label>
+                        <input type="text" list="tipos-sugeridos"
+                            placeholder="Ex: Altitude máxima"
+                            class="feature-tipo-input">
+                    </div>
+                    <div class="form-group feature-valor">
+                        <label>Valor</label>
+                        <input type="text"
+                            placeholder="Ex: 2.263 metros"
+                            class="feature-valor-input">
+                    </div>
+                    <button type="button" class="btn-remove-feature"
+                        onclick="removerFeature(${id})" title="Remover">✕</button>
+                </div>
+            `;
+            container.appendChild(linha);
         }
 
-        function cadastrarTrilha(event) {
+        function removerFeature(id) {
+            const el = document.getElementById(`feature-${id}`);
+            if (el) el.remove();
+        }
+
+        function coletarFeatures() {
+            const rows = document.querySelectorAll('.feature-row');
+            const features = [];
+            rows.forEach(row => {
+                const tipo = row.querySelector('.feature-tipo-input').value.trim();
+                const valor = row.querySelector('.feature-valor-input').value.trim();
+                if (tipo && valor) features.push({ tipo, valor });
+            });
+            return features;
+        }
+
+        // Envio ao backend
+        async function cadastrarLocal(event) {
             event.preventDefault();
-            
-            const trilha = {
-                id: Date.now(),
-                nome: document.getElementById('nome').value,
+
+            const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+            if (!user || !user.login) {
+                alert('Sessão expirada. Faça login novamente.');
+                window.location.href = '../Index.html';
+                return;
+            }
+
+            const payload = {
+                tipo: document.getElementById('tipo').value,
+                nome: document.getElementById('nome').value.trim(),
+                localizacao: document.getElementById('localizacao').value.trim(),
+                descricao: document.getElementById('descricao').value.trim(),
+                imagem_url: document.getElementById('imagem').value.trim() || '../Imagens/dedo_de_deus_logo.png',
                 dificuldade: document.getElementById('dificuldade').value,
-                duracao: document.getElementById('duracao').value,
+                duracao: document.getElementById('duracao').value.trim(),
                 preco: parseFloat(document.getElementById('preco').value),
-                descricao: document.getElementById('descricao').value,
-                imagem: document.getElementById('imagem').value || '../Imagens/dedo_de_deus_logo.png',
-                dataCriacao: new Date().toLocaleDateString('pt-BR')
+                visitas: parseInt(document.getElementById('visitas').value) || 0,
+                features: coletarFeatures()
             };
 
-            const trilhas = JSON.parse(localStorage.getItem('trilhas') || '[]');
-            trilhas.push(trilha);
-            localStorage.setItem('trilhas', JSON.stringify(trilhas));
+            // Feedback visual no botão
+            const btnText = document.getElementById('btn-submit-text');
+            const btnLoading = document.getElementById('btn-submit-loading');
+            const btn = document.getElementById('btn-submit');
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            btn.disabled = true;
 
-            alert('Trilha cadastrada com sucesso!');
-            window.location.href = 'Admin.html';
+            try {
+                const response = await fetch('http://localhost:3000/locais/completo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-login': user.login
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ "${payload.nome}" cadastrado com sucesso!\n${payload.features.length} característica(s) vinculada(s).`);
+                    window.location.href = 'Admin.html';
+                } else {
+                    alert(`❌ Erro: ${data.error || 'Falha ao cadastrar.'}`);
+                }
+            } catch (err) {
+                alert('❌ Não foi possível conectar ao servidor. Verifique se o backend está rodando.');
+            } finally {
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+                btn.disabled = false;
+            }
         }
     </script>
+
+    <!-- Sugestões de autocomplete para tipo de feature -->
+    <datalist id="tipos-sugeridos">
+        <option value="Altitude máxima">
+        <option value="Distância">
+        <option value="Duração">
+        <option value="Dificuldade">
+        <option value="Melhor época">
+        <option value="Vista panorâmica">
+        <option value="Cachoeiras no percurso">
+        <option value="Biodiversidade">
+        <option value="Formações rochosas">
+        <option value="Guia obrigatório">
+        <option value="Horário de funcionamento">
+        <option value="Ingresso">
+        <option value="Contato">
+    </datalist>
 </body>
 </html>
